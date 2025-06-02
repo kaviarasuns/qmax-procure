@@ -24,7 +24,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { BulkUploadDialog } from "@/components/bulk-upload-dialog";
 
 export interface PurchaseItem {
   id: string;
