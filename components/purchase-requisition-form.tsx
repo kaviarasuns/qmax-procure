@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import type { PurchaseItem } from "@/components/purchase-item-table";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -30,7 +31,7 @@ export function PurchaseRequisitionForm() {
   const [projectCode, setProjectCode] = useState("");
   const [purchaseType, setPurchaseType] = useState("");
   const [requestedBy, setRequestedBy] = useState("John Doe"); // Auto-populated from logged-in user
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<PurchaseItem[]>([]);
   const [notes, setNotes] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {

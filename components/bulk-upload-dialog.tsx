@@ -41,11 +41,11 @@ interface ValidationError {
   row: number;
   field: string;
   message: string;
-  value: any;
+  value: string | number | null;
 }
 
 interface BulkUploadDialogProps {
-  onItemsAdded: (items: any[]) => void;
+  onItemsAdded: (items: BulkUploadItem[]) => void;
 }
 
 export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
@@ -73,17 +73,20 @@ export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
 
   const requiredColumns = ["itemName", "itemCode", "quantity", "cost"];
 
-  const validateItem = (item: any, rowIndex: number): ValidationError[] => {
+  const validateItem = (
+    item: Record<string, string | number>,
+    rowIndex: number
+  ): ValidationError[] => {
     const errors: ValidationError[] = [];
 
     // Check required fields
     requiredColumns.forEach((field) => {
-      if (!item[field] || item[field].toString().trim() === "") {
+      if (!item[field] || String(item[field]).trim() === "") {
         errors.push({
           row: rowIndex + 1,
           field,
           message: `${field} is required`,
-          value: item[field],
+          value: item[field] || null,
         });
       }
     });
@@ -112,9 +115,9 @@ export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
     }
 
     // Validate URL if provided
-    if (item.link && item.link.trim() !== "") {
+    if (item.link && String(item.link).trim() !== "") {
       try {
-        new URL(item.link);
+        new URL(String(item.link));
       } catch {
         errors.push({
           row: rowIndex + 1,
@@ -128,16 +131,16 @@ export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
     return errors;
   };
 
-  const parseCSV = (text: string): any[] => {
+  const parseCSV = (text: string): Record<string, string | number>[] => {
     const lines = text.split("\n").filter((line) => line.trim());
     if (lines.length < 2) return [];
 
     const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
-    const data = [];
+    const data: Record<string, string | number>[] = [];
 
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(",").map((v) => v.trim().replace(/"/g, ""));
-      const item: any = {};
+      const item: Record<string, string | number> = {};
 
       headers.forEach((header, index) => {
         item[header] = values[index] || "";
@@ -149,7 +152,9 @@ export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
     return data;
   };
 
-  const parseXLSX = (buffer: ArrayBuffer): any[] => {
+  const parseXLSX = (
+    buffer: ArrayBuffer
+  ): Record<string, string | number>[] => {
     const workbook = XLSX.read(buffer, { type: "array" });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
@@ -163,7 +168,7 @@ export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
     setValidItems([]);
 
     try {
-      let data: any[] = [];
+      let data: Record<string, string | number>[] = [];
 
       if (file.name.endsWith(".csv")) {
         const text = await file.text();
@@ -338,7 +343,7 @@ export function BulkUploadDialog({ onItemsAdded }: BulkUploadDialogProps) {
                     {error.value && (
                       <span className="text-gray-500">
                         {" "}
-                        (value: "{error.value}")
+                        (value: &quot;{error.value}&quot;)
                       </span>
                     )}
                   </div>

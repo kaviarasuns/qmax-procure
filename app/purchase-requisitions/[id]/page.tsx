@@ -146,12 +146,11 @@ const getPurchaseRequisition = (id: string) => {
   return mockData[id as keyof typeof mockData] || null;
 };
 
-export default function PurchaseRequisitionDetailPage({
-  params,
-}: {
-  params: { id: string };
+export default async function PurchaseRequisitionDetailPage(props: {
+  params: Promise<{ id: string }>;
 }) {
-  const requisition = getPurchaseRequisition(params.id);
+  const resolvedParams = await props.params;
+  const requisition = getPurchaseRequisition(resolvedParams.id);
 
   if (!requisition) {
     return (

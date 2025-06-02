@@ -26,7 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { BulkUploadDialog } from "@/components/bulk-upload-dialog";
 
-interface PurchaseItem {
+export interface PurchaseItem {
   id: string;
   itemName: string;
   itemCode: string;
@@ -40,6 +40,20 @@ interface PurchaseItem {
   link: string;
   remarks: string;
   image: File | null;
+}
+
+interface BulkUploadItem {
+  itemName: string;
+  itemCode: string;
+  description: string;
+  quantity: number;
+  units: string;
+  vendor: string;
+  cost: number;
+  currency: string;
+  alternatePart: string;
+  link: string;
+  remarks: string;
 }
 
 interface PurchaseItemTableProps {
@@ -120,7 +134,12 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
     setNewItem({ ...newItem, image: file });
   };
 
-  const handleBulkAdd = (newItems: any[]) => {
+  const handleBulkAdd = (uploadedItems: BulkUploadItem[]) => {
+    const newItems: PurchaseItem[] = uploadedItems.map((item) => ({
+      ...item,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      image: null,
+    }));
     setItems([...items, ...newItems]);
   };
 
