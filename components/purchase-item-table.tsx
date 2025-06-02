@@ -85,7 +85,7 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
       !newItem.cost
     ) {
       alert(
-        "Please fill in all required fields (Item Name, Item Code, Quantity, Cost)"
+        "Please fill in all required fields (Item Name, Mfr. Part Number, Quantity, Cost)"
       );
       return;
     }
@@ -165,7 +165,7 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="item-code">Item Code *</Label>
+            <Label htmlFor="item-code">Mfr. Part Number *</Label>
             <Input
               id="item-code"
               placeholder="e.g., RC0805FR-0710KL"
@@ -236,7 +236,7 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cost">Approximate Cost *</Label>
+            <Label htmlFor="cost">Approximate Cost</Label>
             <Input
               id="cost"
               type="number"
@@ -341,7 +341,7 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Item Name</TableHead>
-                <TableHead>Item Code</TableHead>
+                <TableHead>Mfr. Part Number</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead>Qty</TableHead>
                 <TableHead>Units</TableHead>
