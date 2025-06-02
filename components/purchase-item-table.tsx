@@ -120,22 +120,12 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
     setNewItem({ ...newItem, image: file });
   };
 
-  // const handleBulkAdd = (uploadedItems: BulkUploadItem[]) => {
-  //   const newItems: PurchaseItem[] = uploadedItems.map((item) => ({
-  //     ...item,
-  //     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-  //     image: null,
-  //   }));
-  //   setItems([...items, ...newItems]);
-  // };
-
   return (
     <div className="space-y-6">
       {/* Add New Item Form */}
       <div className="border rounded-lg p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold">Add New Item</h3>
-          {/* <BulkUploadDialog onItemsAdded={handleBulkAdd} /> */}
         </div>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2">
