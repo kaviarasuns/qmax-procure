@@ -25,6 +25,21 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PurchaseItemTable } from "@/components/purchase-item-table";
+import { BulkUploadDialog } from "@/components/bulk-upload-dialog"; // Added import
+
+interface BulkUploadItem {
+  itemName: string;
+  itemCode: string;
+  description: string;
+  quantity: number;
+  units: string;
+  vendor: string;
+  cost: number;
+  currency: string;
+  alternatePart: string;
+  link: string;
+  remarks: string;
+}
 
 export function PurchaseRequisitionForm() {
   const router = useRouter();
@@ -58,6 +73,15 @@ export function PurchaseRequisitionForm() {
     // Show success message and redirect
     alert("Purchase requisition submitted successfully!");
     router.push("/purchase-requisitions");
+  };
+
+  const handleBulkAdd = (uploadedItems: BulkUploadItem[]) => {
+    const newItems: PurchaseItem[] = uploadedItems.map((item) => ({
+      ...item,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      image: null,
+    }));
+    setItems([...items, ...newItems]);
   };
 
   const calculateTotalValue = () => {
@@ -164,7 +188,10 @@ export function PurchaseRequisitionForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Purchase Items</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Purchase Items</CardTitle>
+            <BulkUploadDialog onItemsAdded={handleBulkAdd} />
+          </div>
           <CardDescription>
             Add items to this purchase requisition
           </CardDescription>
