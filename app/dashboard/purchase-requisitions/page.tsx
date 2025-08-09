@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Download, Filter, Plus } from "lucide-react";
 
@@ -10,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -29,13 +32,101 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { createClient } from "@/lib/supabase/client";
 
-export const metadata: Metadata = {
-  title: "Purchase Requisitions",
-  description: "Manage purchase requisitions for electronic components",
-};
+// Purchase types from the enum in the database
+type PurchaseType =
+  | "Proto"
+  | "Production"
+  | "Testing"
+  | "Maintenance"
+  | "Research"
+  | "asset"
+  | "consumable";
+
+// Requisition status from the enum in the database
+type RequisitionStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "In Progress"
+  | "Completed"
+  | "Cancelled";
+
+interface PurchaseRequisitionItem {
+  id: string;
+  item_name: string;
+  item_code?: string;
+  description?: string;
+  quantity: number;
+  units: string;
+  vendor?: string;
+  cost: number;
+  currency: string;
+  alternate_part?: string;
+  link?: string;
+  remarks?: string;
+}
+
+interface PurchaseRequisition {
+  id: string;
+  project_code: string;
+  purchase_type: PurchaseType;
+  requested_by: string;
+  notes?: string;
+  date_created: string;
+  status: RequisitionStatus;
+  total_value: number;
+  items?: PurchaseRequisitionItem[];
+  user?: {
+    email: string;
+    user_metadata: {
+      full_name: string;
+    };
+  };
+}
 
 export default function PurchaseRequisitionsPage() {
+  const [requisitions, setRequisitions] = useState<PurchaseRequisition[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRequisitions = async () => {
+      setIsLoading(true);
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from("purchase_requisitions")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching requisitions:", error);
+        setRequisitions([]);
+      } else if (data) {
+        setRequisitions(data as PurchaseRequisition[]);
+      }
+      setIsLoading(false);
+    };
+
+    fetchRequisitions();
+  }, []);
+
+  // Calculate stats
+  const stats = {
+    total: requisitions.length,
+    pending: requisitions.filter(
+      (r: PurchaseRequisition) => r.status === "Pending"
+    ).length,
+    approved: requisitions.filter(
+      (r: PurchaseRequisition) => r.status === "Approved"
+    ).length,
+    totalValue: requisitions.reduce(
+      (sum: number, r: PurchaseRequisition) => sum + Number(r.total_value),
+      0
+    ),
+  };
+
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between">
@@ -48,7 +139,7 @@ export default function PurchaseRequisitionsPage() {
             Export
           </Button>
           <Button size="sm" asChild>
-            <Link href="/purchase-requisitions/new">
+            <Link href="/dashboard/purchase-requisitions/new">
               <Plus className="mr-2 h-4 w-4" />
               New Requisition
             </Link>
@@ -78,8 +169,8 @@ export default function PurchaseRequisitionsPage() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">47</div>
-            <p className="text-xs text-muted-foreground">+3 this month</p>
+            <div className="text-2xl font-bold">{stats.total}</div>
+            <p className="text-xs text-muted-foreground">Total requisitions</p>
           </CardContent>
         </Card>
         <Card>
@@ -101,7 +192,7 @@ export default function PurchaseRequisitionsPage() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{stats.pending}</div>
             <p className="text-xs text-muted-foreground">Awaiting review</p>
           </CardContent>
         </Card>
@@ -123,7 +214,7 @@ export default function PurchaseRequisitionsPage() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">28</div>
+            <div className="text-2xl font-bold">{stats.approved}</div>
             <p className="text-xs text-muted-foreground">Ready for purchase</p>
           </CardContent>
         </Card>
@@ -144,8 +235,10 @@ export default function PurchaseRequisitionsPage() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">$24,580</div>
-            <p className="text-xs text-muted-foreground">This month</p>
+            <div className="text-2xl font-bold">
+              {formatCurrency(stats.totalValue)}
+            </div>
+            <p className="text-xs text-muted-foreground">Total value</p>
           </CardContent>
         </Card>
       </div>
@@ -220,101 +313,63 @@ export default function PurchaseRequisitionsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <Link
-                          href="/purchase-requisitions/pr-2025-001"
-                          className="hover:underline"
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center">
+                          Loading...
+                        </TableCell>
+                      </TableRow>
+                    ) : requisitions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center">
+                          No requisitions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      requisitions.map((requisition: PurchaseRequisition) => (
+                        <TableRow
+                          key={requisition.id}
+                          className="cursor-pointer hover:bg-muted/50"
                         >
-                          PR-2025-001
-                        </Link>
-                      </TableCell>
-                      <TableCell>PROJ-ALPHA</TableCell>
-                      <TableCell>Proto</TableCell>
-                      <TableCell>John Doe</TableCell>
-                      <TableCell>15</TableCell>
-                      <TableCell>$2,450.00</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">Pending</Badge>
-                      </TableCell>
-                      <TableCell>May 15, 2025</TableCell>
-                    </TableRow>
-                    <TableRow className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <Link
-                          href="/purchase-requisitions/pr-2025-002"
-                          className="hover:underline"
-                        >
-                          PR-2025-002
-                        </Link>
-                      </TableCell>
-                      <TableCell>PROJ-BETA</TableCell>
-                      <TableCell>Production</TableCell>
-                      <TableCell>Jane Smith</TableCell>
-                      <TableCell>8</TableCell>
-                      <TableCell>$1,850.00</TableCell>
-                      <TableCell>
-                        <Badge>Approved</Badge>
-                      </TableCell>
-                      <TableCell>May 14, 2025</TableCell>
-                    </TableRow>
-                    <TableRow className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <Link
-                          href="/purchase-requisitions/pr-2025-003"
-                          className="hover:underline"
-                        >
-                          PR-2025-003
-                        </Link>
-                      </TableCell>
-                      <TableCell>PROJ-GAMMA</TableCell>
-                      <TableCell>Testing</TableCell>
-                      <TableCell>Robert Johnson</TableCell>
-                      <TableCell>12</TableCell>
-                      <TableCell>$980.00</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">Completed</Badge>
-                      </TableCell>
-                      <TableCell>May 13, 2025</TableCell>
-                    </TableRow>
-                    <TableRow className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <Link
-                          href="/purchase-requisitions/pr-2025-004"
-                          className="hover:underline"
-                        >
-                          PR-2025-004
-                        </Link>
-                      </TableCell>
-                      <TableCell>PROJ-DELTA</TableCell>
-                      <TableCell>Proto</TableCell>
-                      <TableCell>Alice Brown</TableCell>
-                      <TableCell>6</TableCell>
-                      <TableCell>$1,200.00</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">Pending</Badge>
-                      </TableCell>
-                      <TableCell>May 12, 2025</TableCell>
-                    </TableRow>
-                    <TableRow className="cursor-pointer hover:bg-muted/50">
-                      <TableCell className="font-medium">
-                        <Link
-                          href="/purchase-requisitions/pr-2025-005"
-                          className="hover:underline"
-                        >
-                          PR-2025-005
-                        </Link>
-                      </TableCell>
-                      <TableCell>PROJ-EPSILON</TableCell>
-                      <TableCell>Production</TableCell>
-                      <TableCell>Michael Davis</TableCell>
-                      <TableCell>20</TableCell>
-                      <TableCell>$3,750.00</TableCell>
-                      <TableCell>
-                        <Badge>Approved</Badge>
-                      </TableCell>
-                      <TableCell>May 11, 2025</TableCell>
-                    </TableRow>
+                          <TableCell className="font-medium">
+                            <Link
+                              href={`/dashboard/purchase-requisitions/${requisition.id}`}
+                              className="hover:underline"
+                            >
+                              {requisition.id.slice(0, 8).toUpperCase()}
+                            </Link>
+                          </TableCell>
+                          <TableCell>{requisition.project_code}</TableCell>
+                          <TableCell>{requisition.purchase_type}</TableCell>
+                          <TableCell>
+                            {requisition.user?.user_metadata?.full_name ||
+                              requisition.user?.email}
+                          </TableCell>
+                          <TableCell>
+                            {requisition.items?.length || 0}
+                          </TableCell>
+                          <TableCell>
+                            {formatCurrency(requisition.total_value)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                requisition.status === "Pending"
+                                  ? "secondary"
+                                  : requisition.status === "Approved"
+                                  ? "default"
+                                  : "outline"
+                              }
+                            >
+                              {requisition.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {formatDate(requisition.date_created)}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </div>

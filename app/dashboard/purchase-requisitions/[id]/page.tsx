@@ -161,7 +161,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
             The requested purchase requisition could not be found.
           </p>
           <Button asChild className="mt-4">
-            <Link href="/purchase-requisitions">
+            <Link href="/dashboard/purchase-requisitions">
               Back to Purchase Requisitions
             </Link>
           </Button>
@@ -191,7 +191,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" asChild>
-            <Link href="/purchase-requisitions">
+            <Link href="/dashboard/purchase-requisitions">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>

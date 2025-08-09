@@ -5,6 +5,7 @@ import type { PurchaseItem } from "@/components/purchase-item-table";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { PurchaseItemTable } from "@/components/purchase-item-table";
-import { BulkUploadDialog } from "@/components/bulk-upload-dialog"; // Added import
+import { BulkUploadDialog } from "@/components/bulk-upload-dialog";
+import { createClient } from "@/lib/supabase/client";
 
 interface BulkUploadItem {
   itemName: string;
@@ -43,36 +45,82 @@ interface BulkUploadItem {
 
 export function PurchaseRequisitionForm() {
   const router = useRouter();
+  const supabase = createClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [projectCode, setProjectCode] = useState("");
   const [purchaseType, setPurchaseType] = useState("");
   const [requestedBy, setRequestedBy] = useState("John Doe"); // Auto-populated from logged-in user
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [notes, setNotes] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Create the purchase requisition object
-    const requisition = {
-      projectCode,
-      purchaseType,
-      requestedBy,
-      items,
-      notes,
-      dateCreated: new Date().toISOString(),
-      status: "Pending",
-      totalValue: items.reduce(
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("You must be logged in to create a requisition");
+      }
+
+      const totalValue = items.reduce(
         (sum, item) => sum + item.cost * item.quantity,
         0
-      ),
-    };
+      );
 
-    // In a real application, this would be sent to an API
-    console.log("Purchase Requisition Submitted:", requisition);
+      // Insert the main requisition
+      const { data: requisition, error: reqError } = await supabase
+        .from("purchase_requisitions")
+        .insert({
+          project_code: projectCode,
+          purchase_type: purchaseType,
+          requested_by: user.id,
+          notes,
+          total_value: totalValue,
+          status: "Pending",
+        })
+        .select()
+        .single();
 
-    // Show success message and redirect
-    alert("Purchase requisition submitted successfully!");
-    router.push("/purchase-requisitions");
+      if (reqError) throw reqError;
+
+      // Insert all items
+      const { error: itemsError } = await supabase
+        .from("purchase_requisition_items")
+        .insert(
+          items.map((item) => ({
+            requisition_id: requisition.id,
+            item_name: item.itemName,
+            item_code: item.itemCode,
+            description: item.description,
+            quantity: item.quantity,
+            units: item.units,
+            vendor: item.vendor,
+            cost: item.cost,
+            currency: item.currency,
+            alternate_part: item.alternatePart,
+            link: item.link,
+            remarks: item.remarks,
+          }))
+        );
+
+      if (itemsError) throw itemsError;
+
+      toast("Purchase requisition has been created successfully.");
+
+      router.push("/dashboard/purchase-requisitions");
+    } catch (error) {
+      console.error("Error creating purchase requisition:", error);
+      toast("Failed to create purchase requisition");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBulkAdd = (uploadedItems: BulkUploadItem[]) => {
@@ -89,6 +137,8 @@ export function PurchaseRequisitionForm() {
       .reduce((sum, item) => sum + item.cost * item.quantity, 0)
       .toFixed(2);
   };
+
+  console.log("Items:", items);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -197,7 +247,11 @@ export function PurchaseRequisitionForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <PurchaseItemTable items={items} setItems={setItems} />
+          <PurchaseItemTable
+            items={items}
+            setItems={setItems}
+            isSubmitting={isSubmitting}
+          />
         </CardContent>
       </Card>
 
@@ -217,9 +271,14 @@ export function PurchaseRequisitionForm() {
           </Button>
           <Button
             type="submit"
-            disabled={items.length === 0 || !projectCode || !purchaseType}
+            disabled={
+              items.length === 0 ||
+              !projectCode ||
+              !purchaseType ||
+              isSubmitting
+            }
           >
-            Submit Requisition
+            {isSubmitting ? "Submitting..." : "Submit Requisition"}
           </Button>
         </CardFooter>
       </Card>

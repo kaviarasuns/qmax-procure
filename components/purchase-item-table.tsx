@@ -44,9 +44,14 @@ export interface PurchaseItem {
 interface PurchaseItemTableProps {
   items: PurchaseItem[];
   setItems: (items: PurchaseItem[]) => void;
+  isSubmitting?: boolean;
 }
 
-export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
+export function PurchaseItemTable({
+  items,
+  setItems,
+  isSubmitting,
+}: PurchaseItemTableProps) {
   const [newItem, setNewItem] = useState<Partial<PurchaseItem>>({
     itemName: "",
     itemCode: "",
@@ -63,14 +68,10 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
   });
 
   const handleAddItem = () => {
-    if (
-      !newItem.itemName ||
-      !newItem.itemCode ||
-      !newItem.quantity ||
-      !newItem.cost
-    ) {
+    if (isSubmitting) return;
+    if (!newItem.itemName || !newItem.itemCode || !newItem.quantity) {
       alert(
-        "Please fill in all required fields (Item Name, Mfr. Part Number, Quantity, Cost)"
+        "Please fill in all required fields (Item Name, Mfr. Part Number, Quantity)"
       );
       return;
     }
@@ -136,7 +137,6 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
               onChange={(e) =>
                 setNewItem({ ...newItem, itemName: e.target.value })
               }
-              required
             />
           </div>
           <div className="space-y-2">
@@ -148,7 +148,6 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
               onChange={(e) =>
                 setNewItem({ ...newItem, itemCode: e.target.value })
               }
-              required
             />
           </div>
           <div className="space-y-2">
@@ -175,7 +174,6 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
                   quantity: Number.parseInt(e.target.value) || 1,
                 })
               }
-              required
             />
           </div>
           <div className="space-y-2">
@@ -224,7 +222,6 @@ export function PurchaseItemTable({ items, setItems }: PurchaseItemTableProps) {
                   cost: Number.parseFloat(e.target.value) || 0,
                 })
               }
-              required
             />
           </div>
           <div className="space-y-2">
