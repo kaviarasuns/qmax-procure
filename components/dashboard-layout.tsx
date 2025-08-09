@@ -37,7 +37,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <div className="flex min-h-screen flex-col w-full">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b bg-background px-6">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 font-semibold"
+          >
             <CircuitBoard className="h-6 w-6" />
             <span className="hidden md:inline-block">Qmax Inventory</span>
           </Link>
@@ -57,8 +60,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <SidebarContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={pathname === "/"}>
-                    <Link href="/">
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === "/dashboard"}
+                  >
+                    <Link href="/dashboard">
                       <LayoutDashboard className="h-4 w-4" />
                       <span>Dashboard</span>
                     </Link>
@@ -67,9 +73,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === "/inventory"}
+                    isActive={pathname === "/dashboard/inventory"}
                   >
-                    <Link href="/">
+                    <Link href="/dashboard/inventory">
                       <Database className="h-4 w-4" />
                       <span>Inventory</span>
                     </Link>
@@ -85,33 +91,47 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
                         asChild
-                        isActive={pathname === "/components/resistors"}
+                        isActive={
+                          pathname === "/dashboard/components/resistors"
+                        }
                       >
-                        <Link href="/components/resistors">Resistors</Link>
+                        <Link href="/dashboard/components/resistors">
+                          Resistors
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
                         asChild
-                        isActive={pathname === "/components/capacitors"}
+                        isActive={
+                          pathname === "/dashboard/components/capacitors"
+                        }
                       >
-                        <Link href="/components/capacitors">Capacitors</Link>
+                        <Link href="/dashboard/components/capacitors">
+                          Capacitors
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
                         asChild
-                        isActive={pathname === "/components/transistors"}
+                        isActive={
+                          pathname === "/dashboard/components/transistors"
+                        }
                       >
-                        <Link href="/components/transistors">Transistors</Link>
+                        <Link href="/dashboard/components/transistors">
+                          Transistors
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                     <SidebarMenuSubItem>
                       <SidebarMenuSubButton
                         asChild
-                        isActive={pathname === "/components/mosfets"}
+                        isActive={pathname === "/dashboard/components/mosfets"}
                       >
-                        <Link href="/components/mosfets">MOSFETs</Link>
+                        <Link href="/dashboard/components/mosfets">
+                          MOSFETs
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   </SidebarMenuSub>
@@ -119,9 +139,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname?.startsWith("/projects")}
+                    isActive={pathname?.startsWith("/dashboard/projects")}
                   >
-                    <Link href="/projects">
+                    <Link href="/dashboard/projects">
                       <Cpu className="h-4 w-4" />
                       <span>Projects</span>
                     </Link>
@@ -130,9 +150,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname?.startsWith("/purchase-requisitions")}
+                    isActive={pathname?.startsWith(
+                      "/dashboard/purchase-requisitions"
+                    )}
                   >
-                    <Link href="/purchase-requisitions">
+                    <Link href="/dashboard/purchase-requisitions">
                       <ShoppingCart className="h-4 w-4" />
                       <span>Purchase Requisitions</span>
                     </Link>
@@ -145,9 +167,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === "/settings"}
+                    isActive={pathname === "/dashboard/settings"}
                   >
-                    <Link href="/settings">
+                    <Link href="/dashboard/settings">
                       <Settings className="h-4 w-4" />
                       <span>Settings</span>
                     </Link>
