@@ -127,6 +127,79 @@ export default function PurchaseRequisitionsPage() {
     ),
   };
 
+  // Shared table section for rendering a list of requisitions
+  const TableSection = ({ list }: { list: PurchaseRequisition[] }) => (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Requisition ID</TableHead>
+            <TableHead>Project Code</TableHead>
+            <TableHead>Purchase Type</TableHead>
+            <TableHead>Requested By</TableHead>
+            <TableHead>Items Count</TableHead>
+            <TableHead>Total Value</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Date Created</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {isLoading ? (
+            <TableRow>
+              <TableCell colSpan={8} className="text-center">
+                Loading...
+              </TableCell>
+            </TableRow>
+          ) : list.length === 0 ? (
+            <TableRow>
+              <TableCell colSpan={8} className="text-center">
+                No requisitions found
+              </TableCell>
+            </TableRow>
+          ) : (
+            list.map((requisition: PurchaseRequisition) => (
+              <TableRow
+                key={requisition.id}
+                className="cursor-pointer hover:bg-muted/50"
+              >
+                <TableCell className="font-medium">
+                  <Link
+                    href={`/dashboard/purchase-requisitions/${requisition.id}`}
+                    className="hover:underline"
+                  >
+                    {requisition.id.slice(0, 8).toUpperCase()}
+                  </Link>
+                </TableCell>
+                <TableCell>{requisition.project_code}</TableCell>
+                <TableCell>{requisition.purchase_type}</TableCell>
+                <TableCell>
+                  {requisition.user?.user_metadata?.full_name ||
+                    requisition.user?.email}
+                </TableCell>
+                <TableCell>{requisition.items?.length || 0}</TableCell>
+                <TableCell>{formatCurrency(requisition.total_value)}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      requisition.status === "Pending"
+                        ? "secondary"
+                        : requisition.status === "Approved"
+                        ? "default"
+                        : "outline"
+                    }
+                  >
+                    {requisition.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatDate(requisition.date_created)}</TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between">
@@ -297,82 +370,7 @@ export default function PurchaseRequisitionsPage() {
                   </DropdownMenu>
                 </div>
               </div>
-
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Requisition ID</TableHead>
-                      <TableHead>Project Code</TableHead>
-                      <TableHead>Purchase Type</TableHead>
-                      <TableHead>Requested By</TableHead>
-                      <TableHead>Items Count</TableHead>
-                      <TableHead>Total Value</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date Created</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isLoading ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center">
-                          Loading...
-                        </TableCell>
-                      </TableRow>
-                    ) : requisitions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center">
-                          No requisitions found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      requisitions.map((requisition: PurchaseRequisition) => (
-                        <TableRow
-                          key={requisition.id}
-                          className="cursor-pointer hover:bg-muted/50"
-                        >
-                          <TableCell className="font-medium">
-                            <Link
-                              href={`/dashboard/purchase-requisitions/${requisition.id}`}
-                              className="hover:underline"
-                            >
-                              {requisition.id.slice(0, 8).toUpperCase()}
-                            </Link>
-                          </TableCell>
-                          <TableCell>{requisition.project_code}</TableCell>
-                          <TableCell>{requisition.purchase_type}</TableCell>
-                          <TableCell>
-                            {requisition.user?.user_metadata?.full_name ||
-                              requisition.user?.email}
-                          </TableCell>
-                          <TableCell>
-                            {requisition.items?.length || 0}
-                          </TableCell>
-                          <TableCell>
-                            {formatCurrency(requisition.total_value)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                requisition.status === "Pending"
-                                  ? "secondary"
-                                  : requisition.status === "Approved"
-                                  ? "default"
-                                  : "outline"
-                              }
-                            >
-                              {requisition.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {formatDate(requisition.date_created)}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+              <TableSection list={requisitions} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -383,9 +381,9 @@ export default function PurchaseRequisitionsPage() {
               <CardDescription>Requisitions awaiting approval</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Pending requisitions would be listed here...
-              </p>
+              <TableSection
+                list={requisitions.filter((r) => r.status === "Pending")}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -398,9 +396,9 @@ export default function PurchaseRequisitionsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Approved requisitions would be listed here...
-              </p>
+              <TableSection
+                list={requisitions.filter((r) => r.status === "Approved")}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -413,9 +411,9 @@ export default function PurchaseRequisitionsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Completed requisitions would be listed here...
-              </p>
+              <TableSection
+                list={requisitions.filter((r) => r.status === "Completed")}
+              />
             </CardContent>
           </Card>
         </TabsContent>

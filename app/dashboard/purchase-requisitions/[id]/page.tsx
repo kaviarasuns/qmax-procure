@@ -1,5 +1,8 @@
-import type { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 import { ArrowLeft, Download, Edit, MessageSquare } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,141 +27,166 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PurchaseRequisitionActions } from "@/components/purchase-requisition-actions";
 import { PurchaseRequisitionTimeline } from "@/components/purchase-requisition-timeline";
-// import { PurchaseRequisitionActions } from "@/components/purchase-requisition-actions";
-// import { PurchaseRequisitionTimeline } from "@/components/purchase-requisition-timeline";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { createClient } from "@/lib/supabase/client";
 
-export const metadata: Metadata = {
-  title: "Purchase Requisition Details",
-  description: "View detailed information about a purchase requisition",
-};
+// Types aligned with the database schema
+type PurchaseType =
+  | "Proto"
+  | "Production"
+  | "Testing"
+  | "Maintenance"
+  | "Research"
+  | "asset"
+  | "consumable";
 
-// Mock data - in a real app, this would come from an API based on the ID
-const getPurchaseRequisition = (id: string) => {
-  const mockData = {
-    "pr-2025-001": {
-      id: "PR-2025-001",
-      projectCode: "PROJ-ALPHA",
-      projectName: "Smart Home Controller",
-      purchaseType: "Proto",
-      requestedBy: "John Doe",
-      requestedByEmail: "john.doe@company.com",
-      status: "Pending",
-      dateCreated: "2025-05-15T10:30:00Z",
-      dateUpdated: "2025-05-15T10:30:00Z",
-      totalValue: 2450.0,
-      currency: "USD",
-      notes:
-        "Urgent requirement for prototype development. Please prioritize components with shorter lead times.",
-      items: [
-        {
-          id: "1",
-          itemName: "10K Resistor",
-          itemCode: "RC0805FR-0710KL",
-          description: "10K Ohm 1% 1/8W Surface Mount Resistor",
-          quantity: 100,
-          units: "pcs",
-          vendor: "DigiKey",
-          cost: 0.05,
-          currency: "USD",
-          alternatePart: "RC0805FR-0710RL",
-          link: "https://www.digikey.com/product-detail/en/yageo/RC0805FR-0710KL/311-10.0KCRCT-ND/730391",
-          remarks: "Standard tolerance acceptable",
-          image: null,
-        },
-        {
-          id: "2",
-          itemName: "1uF Capacitor",
-          itemCode: "CL10A105KB8NNNC",
-          description: "1uF 50V X7R Ceramic Capacitor",
-          quantity: 50,
-          units: "pcs",
-          vendor: "Mouser",
-          cost: 0.15,
-          currency: "USD",
-          alternatePart: "CL10A105KA8NNNC",
-          link: "https://www.mouser.com/ProductDetail/Samsung-Electro-Mechanics/CL10A105KB8NNNC",
-          remarks: "X7R dielectric preferred",
-          image: null,
-        },
-        {
-          id: "3",
-          itemName: "ESP32 Module",
-          itemCode: "ESP32-WROOM-32",
-          description: "ESP32 WiFi + Bluetooth Module",
-          quantity: 10,
-          units: "pcs",
-          vendor: "Espressif",
-          cost: 3.5,
-          currency: "USD",
-          alternatePart: "ESP32-WROOM-32D",
-          link: "https://www.espressif.com/en/products/modules/esp32",
-          remarks: "Latest revision required",
-          image: null,
-        },
-        {
-          id: "4",
-          itemName: "PCB Fabrication",
-          itemCode: "PCB-ALPHA-V1.2",
-          description: "4-layer PCB, 100x80mm, 1.6mm thickness",
-          quantity: 25,
-          units: "pcs",
-          vendor: "JLCPCB",
-          cost: 12.0,
-          currency: "USD",
-          alternatePart: "",
-          link: "https://jlcpcb.com/",
-          remarks: "Green solder mask, HASL finish",
-          image: null,
-        },
-        {
-          id: "5",
-          itemName: "Enclosure",
-          itemCode: "ABS-100x80x25",
-          description: "ABS Plastic Enclosure, 100x80x25mm",
-          quantity: 10,
-          units: "pcs",
-          vendor: "Hammond",
-          cost: 8.5,
-          currency: "USD",
-          alternatePart: "PC-100x80x25",
-          link: "https://www.hammfg.com/",
-          remarks: "Black color preferred",
-          image: null,
-        },
-      ],
-      timeline: [
-        {
-          date: "2025-05-15T10:30:00Z",
-          action: "Requisition Created",
-          user: "John Doe",
-          description: "Purchase requisition submitted for review",
-        },
-        {
-          date: "2025-05-15T11:15:00Z",
-          action: "Under Review",
-          user: "System",
-          description: "Requisition assigned to procurement team",
-        },
-      ],
-    },
+type RequisitionStatus =
+  | "Pending"
+  | "Approved"
+  | "Rejected"
+  | "In Progress"
+  | "Completed"
+  | "Cancelled";
+
+interface PurchaseRequisitionItem {
+  id: string;
+  requisition_id: string;
+  item_name: string;
+  item_code?: string;
+  description?: string;
+  quantity: number;
+  units: string;
+  vendor?: string;
+  cost: number;
+  currency: string;
+  alternate_part?: string;
+  link?: string;
+  remarks?: string;
+}
+
+interface PurchaseRequisition {
+  id: string;
+  project_code: string;
+  purchase_type: PurchaseType;
+  requested_by: string; // UUID
+  notes?: string;
+  date_created: string;
+  status: RequisitionStatus;
+  total_value: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export default function PurchaseRequisitionDetailPage() {
+  const params = useParams();
+  const id = useMemo(() => {
+    const raw = (params as Record<string, string | string[]>)?.id;
+    return Array.isArray(raw) ? raw[0] : raw;
+  }, [params]);
+
+  const [requisition, setRequisition] = useState<PurchaseRequisition | null>(
+    null
+  );
+  const [items, setItems] = useState<PurchaseRequisitionItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [requesterName, setRequesterName] = useState<string | null>(null);
+  const [requesterEmail, setRequesterEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const supabase = createClient();
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      // Fetch requisition by id
+      const { data: req, error: reqError } = await supabase
+        .from("purchase_requisitions")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (reqError) {
+        console.error("Error fetching requisition:", reqError);
+        setError("Failed to load requisition.");
+        setRequisition(null);
+        setItems([]);
+        setIsLoading(false);
+        return;
+      }
+
+      setRequisition(req as unknown as PurchaseRequisition);
+
+      // Fetch items for the requisition
+      const { data: itemRows, error: itemsError } = await supabase
+        .from("purchase_requisition_items")
+        .select("*")
+        .eq("requisition_id", id)
+        .order("created_at", { ascending: true });
+
+      if (itemsError) {
+        console.error("Error fetching requisition items:", itemsError);
+        setItems([]);
+      } else {
+        setItems((itemRows || []) as unknown as PurchaseRequisitionItem[]);
+      }
+
+      // Best-effort: get current user for display (RLS implies it's the requester)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        const meta = user.user_metadata as
+          | Record<string, unknown>
+          | null
+          | undefined;
+        const fullName =
+          typeof meta?.full_name === "string"
+            ? (meta.full_name as string)
+            : undefined;
+        setRequesterName(fullName ?? null);
+        setRequesterEmail(user.email ?? null);
+      }
+
+      setIsLoading(false);
+    };
+
+    fetchData();
+  }, [id]);
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "pending":
+        return "secondary" as const;
+      case "approved":
+        return "default" as const;
+      case "rejected":
+        return "destructive" as const;
+      case "completed":
+        return "outline" as const;
+      default:
+        return "secondary" as const;
+    }
   };
 
-  return mockData[id as keyof typeof mockData] || null;
-};
+  if (isLoading) {
+    return (
+      <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
-export default async function PurchaseRequisitionDetailPage(props: {
-  params: Promise<{ id: string }>;
-}) {
-  const resolvedParams = await props.params;
-  const requisition = getPurchaseRequisition(resolvedParams.id);
-
-  if (!requisition) {
+  if (error || !requisition) {
     return (
       <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
         <div className="text-center py-12">
           <h2 className="text-2xl font-bold">Purchase Requisition Not Found</h2>
           <p className="text-muted-foreground mt-2">
-            The requested purchase requisition could not be found.
+            {error ?? "The requested purchase requisition could not be found."}
           </p>
           <Button asChild className="mt-4">
             <Link href="/dashboard/purchase-requisitions">
@@ -170,20 +198,8 @@ export default async function PurchaseRequisitionDetailPage(props: {
     );
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "pending":
-        return "secondary";
-      case "approved":
-        return "default";
-      case "rejected":
-        return "destructive";
-      case "completed":
-        return "outline";
-      default:
-        return "secondary";
-    }
-  };
+  const totalItems = items.length;
+  const totalValue = Number(requisition.total_value || 0);
 
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
@@ -197,11 +213,10 @@ export default async function PurchaseRequisitionDetailPage(props: {
           </Button>
           <div>
             <h2 className="text-3xl font-bold tracking-tight">
-              {requisition.id}
+              {requisition.id.slice(0, 8).toUpperCase()}
             </h2>
             <p className="text-muted-foreground">
-              Created on{" "}
-              {new Date(requisition.dateCreated).toLocaleDateString()}
+              Created on {formatDate(requisition.date_created)}
             </p>
           </div>
         </div>
@@ -214,7 +229,9 @@ export default async function PurchaseRequisitionDetailPage(props: {
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <PurchaseRequisitionActions requisition={requisition} />
+          <PurchaseRequisitionActions
+            requisition={{ id: requisition.id, status: requisition.status }}
+          />
         </div>
       </div>
 
@@ -238,7 +255,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
             <CardTitle className="text-sm font-medium">Total Items</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{requisition.items.length}</div>
+            <div className="text-2xl font-bold">{totalItems}</div>
           </CardContent>
         </Card>
         <Card>
@@ -247,7 +264,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ${requisition.totalValue.toLocaleString()} {requisition.currency}
+              {formatCurrency(totalValue)}
             </div>
           </CardContent>
         </Card>
@@ -256,7 +273,9 @@ export default async function PurchaseRequisitionDetailPage(props: {
             <CardTitle className="text-sm font-medium">Purchase Type</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{requisition.purchaseType}</div>
+            <div className="text-2xl font-bold">
+              {requisition.purchase_type}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -276,10 +295,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
                     Project Code
                   </label>
                   <p className="text-lg font-semibold">
-                    {requisition.projectCode}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {requisition.projectName}
+                    {requisition.project_code}
                   </p>
                 </div>
                 <div>
@@ -287,7 +303,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
                     Purchase Type
                   </label>
                   <p className="text-lg font-semibold">
-                    {requisition.purchaseType}
+                    {requisition.purchase_type}
                   </p>
                 </div>
                 <div>
@@ -298,20 +314,25 @@ export default async function PurchaseRequisitionDetailPage(props: {
                     <Avatar className="h-8 w-8">
                       <AvatarImage
                         src="/placeholder-user.jpg"
-                        alt={requisition.requestedBy}
+                        alt={requesterName ?? requisition.requested_by}
                       />
                       <AvatarFallback>
-                        {requisition.requestedBy
+                        {(requesterName ?? requesterEmail ?? "?")
                           .split(" ")
                           .map((n) => n[0])
                           .join("")}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold">{requisition.requestedBy}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {requisition.requestedByEmail}
+                      <p className="font-semibold">
+                        {requesterName ??
+                          requisition.requested_by.slice(0, 8).toUpperCase()}
                       </p>
+                      {requesterEmail && (
+                        <p className="text-sm text-muted-foreground">
+                          {requesterEmail}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -320,10 +341,10 @@ export default async function PurchaseRequisitionDetailPage(props: {
                     Date Created
                   </label>
                   <p className="text-lg font-semibold">
-                    {new Date(requisition.dateCreated).toLocaleDateString()}
+                    {formatDate(requisition.date_created)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(requisition.dateCreated).toLocaleTimeString()}
+                    Updated {formatDate(requisition.updated_at)}
                   </p>
                 </div>
               </div>
@@ -343,9 +364,7 @@ export default async function PurchaseRequisitionDetailPage(props: {
 
           <Tabs defaultValue="items">
             <TabsList>
-              <TabsTrigger value="items">
-                Items ({requisition.items.length})
-              </TabsTrigger>
+              <TabsTrigger value="items">Items ({items.length})</TabsTrigger>
               <TabsTrigger value="timeline">Timeline</TabsTrigger>
               <TabsTrigger value="comments">Comments</TabsTrigger>
             </TabsList>
@@ -369,66 +388,93 @@ export default async function PurchaseRequisitionDetailPage(props: {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {requisition.items.map((item) => (
-                          <TableRow key={item.id}>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="font-semibold">{item.itemName}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  Code: {item.itemCode}
-                                </p>
-                                <p className="text-sm">{item.description}</p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p>
-                                  <span className="font-semibold">
-                                    {item.quantity}
-                                  </span>{" "}
-                                  {item.units}
-                                </p>
-                                {item.alternatePart && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Alt: {item.alternatePart}
-                                  </p>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                <p className="font-semibold">{item.vendor}</p>
-                                <p>
-                                  {item.cost.toFixed(2)} {item.currency} each
-                                </p>
-                                <p className="text-sm font-semibold">
-                                  Total:{" "}
-                                  {(item.cost * item.quantity).toFixed(2)}{" "}
-                                  {item.currency}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="space-y-1">
-                                {item.link && (
-                                  <a
-                                    href={item.link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-sm text-blue-600 hover:underline"
-                                  >
-                                    Product Link
-                                  </a>
-                                )}
-                                {item.remarks && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {item.remarks}
-                                  </p>
-                                )}
-                              </div>
+                        {items.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={4}
+                              className="text-center text-sm text-muted-foreground"
+                            >
+                              No items
                             </TableCell>
                           </TableRow>
-                        ))}
+                        ) : (
+                          items.map((item) => {
+                            const itemTotal =
+                              Number(item.cost) * Number(item.quantity);
+                            return (
+                              <TableRow key={item.id}>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <p className="font-semibold">
+                                      {item.item_name}
+                                    </p>
+                                    {item.item_code && (
+                                      <p className="text-sm text-muted-foreground">
+                                        Code: {item.item_code}
+                                      </p>
+                                    )}
+                                    {item.description && (
+                                      <p className="text-sm">
+                                        {item.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <p>
+                                      <span className="font-semibold">
+                                        {item.quantity}
+                                      </span>{" "}
+                                      {item.units}
+                                    </p>
+                                    {item.alternate_part && (
+                                      <p className="text-sm text-muted-foreground">
+                                        Alt: {item.alternate_part}
+                                      </p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    {item.vendor && (
+                                      <p className="font-semibold">
+                                        {item.vendor}
+                                      </p>
+                                    )}
+                                    <p>
+                                      {formatCurrency(Number(item.cost))}{" "}
+                                      {item.currency} each
+                                    </p>
+                                    <p className="text-sm font-semibold">
+                                      Total: {formatCurrency(itemTotal)}{" "}
+                                      {item.currency}
+                                    </p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    {item.link && (
+                                      <a
+                                        href={item.link}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-blue-600 hover:underline"
+                                      >
+                                        Product Link
+                                      </a>
+                                    )}
+                                    {item.remarks && (
+                                      <p className="text-sm text-muted-foreground">
+                                        {item.remarks}
+                                      </p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })
+                        )}
                       </TableBody>
                     </Table>
                   </div>
@@ -436,7 +482,17 @@ export default async function PurchaseRequisitionDetailPage(props: {
               </Card>
             </TabsContent>
             <TabsContent value="timeline">
-              <PurchaseRequisitionTimeline timeline={requisition.timeline} />
+              {/* Placeholder timeline until auditing is implemented */}
+              <PurchaseRequisitionTimeline
+                timeline={[
+                  {
+                    date: requisition.created_at,
+                    action: "Requisition Created",
+                    user: requesterName ?? requesterEmail ?? "User",
+                    description: "Purchase requisition submitted",
+                  },
+                ]}
+              />
             </TabsContent>
             <TabsContent value="comments">
               <Card>
@@ -487,20 +543,21 @@ export default async function PurchaseRequisitionDetailPage(props: {
               <CardTitle>Cost Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {requisition.items.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
-                  <span className="truncate mr-2">{item.itemName}</span>
-                  <span className="font-medium">
-                    ${(item.cost * item.quantity).toFixed(2)}
-                  </span>
-                </div>
-              ))}
+              {items.map((item) => {
+                const itemTotal = Number(item.cost) * Number(item.quantity);
+                return (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span className="truncate mr-2">{item.item_name}</span>
+                    <span className="font-medium">
+                      {formatCurrency(itemTotal)}
+                    </span>
+                  </div>
+                );
+              })}
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
-                <span>
-                  ${requisition.totalValue.toFixed(2)} {requisition.currency}
-                </span>
+                <span>{formatCurrency(totalValue)}</span>
               </div>
             </CardContent>
           </Card>
@@ -514,21 +571,21 @@ export default async function PurchaseRequisitionDetailPage(props: {
                 <label className="text-sm font-medium text-muted-foreground">
                   Project
                 </label>
-                <p className="text-sm">{requisition.projectName}</p>
+                <p className="text-sm">{requisition.project_code}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
                   Requester
                 </label>
-                <p className="text-sm">{requisition.requestedBy}</p>
+                <p className="text-sm">
+                  {requesterName ?? requisition.requested_by}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
                   Last Updated
                 </label>
-                <p className="text-sm">
-                  {new Date(requisition.dateUpdated).toLocaleDateString()}
-                </p>
+                <p className="text-sm">{formatDate(requisition.updated_at)}</p>
               </div>
             </CardContent>
           </Card>

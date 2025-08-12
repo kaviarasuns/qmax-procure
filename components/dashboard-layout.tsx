@@ -72,13 +72,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    asChild
-                    isActive={pathname === "/dashboard/inventory"}
+                    disabled
+                    className="opacity-50 cursor-not-allowed text-muted-foreground hover:bg-transparent"
                   >
-                    <Link href="/dashboard/inventory">
-                      <Database className="h-4 w-4" />
-                      <span>Inventory</span>
-                    </Link>
+                    <Database className="h-4 w-4" />
+                    <span>Inventory</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
