@@ -14,7 +14,6 @@ import {
 import { Search } from "@/components/search";
 import { Overview } from "@/components/overview";
 import { RecentActivity } from "@/components/recent-activity";
-import { createClient } from "@/lib/supabase/client";
 
 export const metadata: Metadata = {
   title: "Inventory Dashboard",
@@ -22,25 +21,6 @@ export const metadata: Metadata = {
 };
 
 export default async function DashboardPage() {
-  // Add this temporarily to your page.tsx
-  console.log("SUPABASE_URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-  console.log(
-    "SERVICE_ROLE_KEY:",
-    process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY ? "Present" : "Missing"
-  );
-  console.log(
-    "ANON_KEY:",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Present" : "Missing"
-  );
-  const supabase = await createClient(); // Use the server-side client
-
-  // Fetch users from Supabase and log to console
-  const { data: users, error } = await supabase.from("users").select("*");
-  if (error) {
-    console.log("Error fetching users:", error);
-  } else {
-    console.log("Supabase users:", users);
-  }
   return (
     <div className="flex-1 space-y-4 p-4 pt-6 md:p-8">
       <div className="flex items-center justify-between">
